@@ -5,6 +5,7 @@
 #include <pthread.h>
 
 #include <raylib.h>
+#include <raymath.h>
 #include <imgui.h>
 #include <misc/cpp/imgui_stdlib.h>
 #include <rlImGui.h>
@@ -128,18 +129,88 @@ int main() {
     SetConfigFlags(FLAG_WINDOW_RESIZABLE);
     InitWindow(1280, 720, "client");
 
-    rlImGuiSetup(true);
+    Image img = GenImageColor(128, 128, RAYWHITE);
 
-    printf("Assets path: %s\n", ASSETS_PATH);
+    for (int y = 0; y < img.height; y++) {
+        for (int x = 0; x < img.width; x++) {
+            if (x % 2 == y % 2) {
+                ImageDrawPixel(&img, x, y, BLACK);
+            }
+        }
+    }
+
+	Texture2D texture = LoadTextureFromImage(img);
+
+	Camera2D camera = { 0 };
+    camera.target = Vector2(img.width / 2.0f, img.height / 2.0f);
+    camera.offset = Vector2(GetScreenWidth() / 2.0f, GetScreenHeight() / 2.0f);
+    camera.rotation = 0.0f;
+
+    camera.zoom = min(
+        (float)GetScreenWidth() / (float)img.width,
+        (float)GetScreenHeight() / (float)img.height
+    );
+
+    rlImGuiSetup(true);
     
     ImGuiIO& io = ImGui::GetIO();
+    io.WantSaveIniSettings = false;
     ImFont* robotoFont = io.Fonts->AddFontFromFileTTF(ASSETS_PATH "fonts/Roboto-VariableFont.ttf", 18);
     IM_ASSERT(robotoFont != NULL);
 
+	ImGuiStyle& style = ImGui::GetStyle();
+    style.FrameRounding = 5.0f;
+    style.WindowRounding = 5.0f;
+    style.ChildRounding = 5.0f;
+    style.FrameRounding = 5.0f;
+    style.PopupRounding = 5.0f;
+    style.ScrollbarRounding = 5.0f;
+    style.GrabRounding = 5.0f;
+
+    style.FramePadding.y = 4.0f;
+    style.WindowBorderSize = 0.0f;
+    style.WindowTitleAlign.x = 0.5f;
+
     while (!WindowShouldClose()) {
+        camera.offset = Vector2(GetScreenWidth() / 2.0f, GetScreenHeight() / 2.0f);
+
+        if (!io.WantCaptureMouse) {
+            if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
+                camera.target -= GetMouseDelta() / camera.zoom;
+            }
+
+            float wheel = GetMouseWheelMove();
+            if (wheel != 0.0f) {
+                Vector2 mouseScreen = GetMousePosition();
+                Vector2 mouseWorldBefore = GetScreenToWorld2D(mouseScreen, camera);
+
+                float zoomFactor = 1.1f;
+                if (wheel > 0) {
+                    camera.zoom *= powf(zoomFactor, wheel);
+                }
+                else if (wheel < 0) {
+                    camera.zoom /= powf(zoomFactor, -wheel);
+                }
+
+                if (camera.zoom < 0.05f) camera.zoom = 0.05f;
+
+                Vector2 mouseWorldAfter = GetScreenToWorld2D(mouseScreen, camera);
+                camera.target += mouseWorldBefore - mouseWorldAfter;
+            }
+
+            if (camera.zoom < 0.05f) { camera.zoom = 0.05f; }
+            camera.target = Vector2Clamp(camera.target, Vector2Zero(), Vector2(img.width, img.height));
+        }
+
         BeginDrawing();
 
-        ClearBackground(BLACK);
+        ClearBackground(DARKGRAY);
+
+        BeginMode2D(camera);
+
+        DrawTexture(texture, 0, 0, WHITE);
+
+        EndMode2D();
 
         rlImGuiBegin();
         ImGui::PushFont(robotoFont);
@@ -206,7 +277,7 @@ int main() {
         pthread_join(enet_thread_hnd, NULL);
     }
     
-    if (peer != NULL) {
+    if (peer != NULL && peer->state == ENET_PEER_STATE_CONNECTED) {
         enet_peer_disconnect(peer, 0);
 
         uint8_t disconnected = false;
