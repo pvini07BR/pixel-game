@@ -48,7 +48,7 @@ void* enet_service_thread(void* args) {
         while (enet_host_service(client, &event, 0) > 0) {
             switch (event.type) {
                 case ENET_EVENT_TYPE_RECEIVE:
-                    printf ("A packet of length %u containing %s was received from %s on channel %u.\n",
+                    printf ("A packet of length %u containsing %s was received from %s on channel %u.\n",
                             event.packet -> dataLength,
                             event.packet -> data,
                             event.peer -> data,
