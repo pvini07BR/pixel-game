@@ -146,7 +146,7 @@ int main() {
     camera.offset = Vector2(GetScreenWidth() / 2.0f, GetScreenHeight() / 2.0f);
     camera.rotation = 0.0f;
 
-    camera.zoom = min(
+    camera.zoom = std::min(
         (float)GetScreenWidth() / (float)img.width,
         (float)GetScreenHeight() / (float)img.height
     );
